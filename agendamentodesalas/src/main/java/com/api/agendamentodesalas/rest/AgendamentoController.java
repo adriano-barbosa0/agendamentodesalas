@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -37,8 +38,8 @@ public class AgendamentoController {
             @RequestParam("dataInicio") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate dataInicio,
             @RequestParam("dataFim") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate dataFim,
             @RequestParam("salaId") Long salaId) {
-       // log.info("inciando fluxo de busca de agendamento");
-       // log.error("houve um erro ao buscar a informacao");
+        log.info("inciando fluxo de busca de agendamento");
+        log.error("houve um erro ao buscar a informacao");
         Optional<SalaEntity> salaEntityOptional = salaRepository.findById(salaId);
         if (salaEntityOptional.isEmpty())
             return new ResponseEntity("nao existe uma sala para o id informado", HttpStatus.NOT_FOUND);
@@ -51,12 +52,32 @@ public class AgendamentoController {
     }
 
     @GetMapping("/disponibilidade")
-    public List<AgendamentoEntity> buscaDisponibilidade(
+    public List<LocalDateTime> buscaDisponibilidade(
             @RequestParam("dataInicio") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate dataInicio,
             @RequestParam("dataFim") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate dataFim,
             @RequestParam("salaId") Long salaId) {
         List<AgendamentoEntity> agendamentoEntities = agendamentoRepository.buscaDiasMarcadosPorPeriodo(dataInicio, dataFim, salaId);
-        return agendamentoEntities;
+
+        List<LocalDateTime> horariosDisponiveis = criaHorariosParaOsDias(dataInicio, dataFim);
+        List<LocalDateTime> horariosAgendados = agendamentoEntities.stream().map(agendamentoEntity -> {
+            LocalDateTime localDateTime = agendamentoEntity.getId().getDia().atStartOfDay();
+            return localDateTime.plusHours(agendamentoEntity.getId().getHora());
+        }).collect(Collectors.toList());
+        horariosDisponiveis.removeAll(horariosAgendados);
+        return horariosDisponiveis;
+    }
+
+    private static List<LocalDateTime> criaHorariosParaOsDias(LocalDate dataInicio, LocalDate dataFim) {
+        List<LocalDate> intervaloDeDatas = criaDatasEntreDataInicioEDataFim(dataInicio, dataFim);
+        List<LocalDateTime> horarios = new ArrayList<>();
+        // para cada data
+        intervaloDeDatas.forEach(localDate -> {
+            // preenche os 24 slots de horario
+            for (int i = 0; i < 24; i++) {
+                horarios.add(localDate.atStartOfDay().plusHours(i));
+            }
+        });
+        return horarios;
     }
 
     @PostMapping
@@ -89,7 +110,7 @@ public class AgendamentoController {
 
     @PutMapping
     public ResponseEntity reagendar(@RequestBody AtualizaAgendamentoRequest atualizaAgendamentoRequest) {
-        
+
         // verifica se o antigo existe
         AtualizaAgendamentoRequestItem antigo = atualizaAgendamentoRequest.getAntigo();
         AgendamentoId agendamentoIdAntigo = AgendamentoConverter.fromAtualizaAgendamentoRequestItemToAgendamentoId(antigo);
@@ -114,5 +135,12 @@ public class AgendamentoController {
         AgendamentoEntity novoAgendamento = agendamentoRepository.save(novaAgendamento);
         agendamentoRepository.deleteById(agendamentoIdAntigo);
         return ResponseEntity.ok(novoAgendamento);
+    }
+
+    public static List<LocalDate> criaDatasEntreDataInicioEDataFim(
+            LocalDate startDate, LocalDate endDate) {
+
+        return startDate.datesUntil(endDate)
+                .collect(Collectors.toList());
     }
 }
