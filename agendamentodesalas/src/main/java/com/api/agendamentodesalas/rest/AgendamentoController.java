@@ -37,8 +37,8 @@ public class AgendamentoController {
             @RequestParam("dataInicio") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate dataInicio,
             @RequestParam("dataFim") @DateTimeFormat(pattern = "dd/MM/yyyy") LocalDate dataFim,
             @RequestParam("salaId") Long salaId) {
-        log.info("inciando fluxo de busca de agendamento");
-        log.error("houve um erro ao buscar a informacao");
+       // log.info("inciando fluxo de busca de agendamento");
+       // log.error("houve um erro ao buscar a informacao");
         Optional<SalaEntity> salaEntityOptional = salaRepository.findById(salaId);
         if (salaEntityOptional.isEmpty())
             return new ResponseEntity("nao existe uma sala para o id informado", HttpStatus.NOT_FOUND);
